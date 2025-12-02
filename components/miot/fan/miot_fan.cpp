@@ -37,7 +37,7 @@ void MiotFan::setup() {
         ESP_LOGW(TAG, "Ignoring MCU reported speed, fan is off");
       return;
     }
-    if (this->has_preset_mode()) {
+    if (!this->preset_mode.empty()) {
       ESP_LOGW(TAG, "Ignoring MCU reported speed, in preset mode");
       return;
     }
@@ -64,14 +64,15 @@ void MiotFan::setup() {
     this->parent_->register_listener(this->preset_modes_siid_, this->preset_modes_piid_, true, mvtUInt, [this](const MiotValue &value) {
       ESP_LOGV(TAG, "MCU reported preset mode %" PRIu32 ":%" PRIu32 " is: %" PRIu32, this->preset_modes_siid_, this->preset_modes_piid_, value.as_uint);
       if (this->manual_speed_preset_.has_value() && value.as_uint == *this->manual_speed_preset_) {
-        this->clear_preset_mode_();
+        this->preset_mode.clear();
       } else {
         auto it = preset_modes_.find(value.as_uint);
         if (it == preset_modes_.end()) {
           ESP_LOGE(TAG, "Unknown preset mode value %" PRIu32 "", value.as_uint);
           return;
         }
-        this->set_preset_mode_(it->second);
+        //this->preset_mode = it->second;
+        this->set_preset_mode_name(it->second);
         this->speed = 0;
       }
       this->publish_state();
@@ -140,7 +141,7 @@ void MiotFan::control(const fan::FanCall &call) {
     this->speed = 0;
     this->parent_->set_property(this->preset_modes_siid_, this->preset_modes_piid_, MiotValue(*mode));
   } else if (call.get_speed().has_value()) {
-    this->clear_preset_mode_();
+    this->preset_mode.clear();
     if (this->manual_speed_preset_.has_value())
       this->parent_->set_property(this->preset_modes_siid_, this->preset_modes_piid_, MiotValue(*this->manual_speed_preset_));
     this->parent_->set_property(this->speed_siid_, this->speed_piid_, MiotValue(this->speed_min_ + *call.get_speed() * this->speed_step_ - 1));
